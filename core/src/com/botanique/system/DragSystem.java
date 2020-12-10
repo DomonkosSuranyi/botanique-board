@@ -7,48 +7,54 @@ import com.badlogic.ashley.systems.IteratingSystem;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.botanique.component.*;
+import com.botanique.TileMap;
+import sun.awt.X11.XSystemTrayPeer;
 
 import java.util.Optional;
 
 public class DragSystem extends IteratingSystem {
     private final ComponentMapper<PositionComponent> positionCM = ComponentMapper.getFor(PositionComponent.class);
     private final ComponentMapper<RectangleAreaComponent> areaCM = ComponentMapper.getFor(RectangleAreaComponent.class);
-    private final Entity cursorEntity;
-    private final CursorComponent cursorComponent;
+    private final Cursor cursor;
+
+    private final TileMap tilemap;
 
     private final Array<Entity> draggables = new Array<>();
 
-    public DragSystem(final Entity cursor) {
+    public DragSystem(final TileMap tilemap, final Cursor cursor) {
         super(Family.all(DraggableComponent.class, RectangleAreaComponent.class, PositionComponent.class).get());
-        cursorEntity = cursor;
-        cursorComponent = cursor.getComponent(CursorComponent.class);
+        this.cursor = cursor;
+        this.tilemap = tilemap;
     }
 
     @Override
     public void update(float deltaTime) {
         super.update(deltaTime);
 
-        final PositionComponent cursorPos = positionCM.get(cursorEntity);
-        if (cursorComponent.leftButtonJustPressed) {
+        if (cursor.leftButtonJustPressed) {
+            cursor.leftButtonJustPressed = false;
             // start drag
-            getDraggableUnderCursor().ifPresent(dragged -> dragEntity(cursorComponent, cursorPos, dragged));
-        } else if (cursorComponent.leftButtonPressed) {
+            getDraggableUnderCursor().ifPresent(this::dragEntity);
+            System.out.println(cursor.getDraggedEntity());
+        } else if (cursor.leftButtonPressed) {
             // continue drag: update draggable position
-            final Vector2 dragEntityPosition = cursorPos.getPosition().sub(cursorComponent.getDragOffset());
-            cursorComponent.getDraggedEntity()
+            final Vector2 dragEntityPosition = tilemap.roundToTilePosition(cursor.getPosition());
+            cursor.getDraggedEntity()
                     .map(positionCM::get)
                     .ifPresent(component -> component.setPosition(dragEntityPosition));
-        } else if (cursorComponent.getDraggedEntity().isPresent()) {
+        } else if (cursor.getDraggedEntity().isPresent()) {
             // finish drag
-            cursorComponent.dropEntity();
+            cursor.dropEntity();
         }
 
         draggables.clear();
     }
 
-    private void dragEntity(final CursorComponent cursorComponent, final PositionComponent cursorPos, final Entity draggedEntity) {
-        final Vector2 offset = cursorPos.getPosition().sub(positionCM.get(draggedEntity).getPosition());
-        cursorComponent.dragEntity(draggedEntity, offset);
+    private void dragEntity(final Entity draggedEntity) {
+        System.out.println("cursorPos: " + cursor.getPosition());
+        final Vector2 offset = cursor.getPosition().sub(positionCM.get(draggedEntity).getPosition());
+        System.out.println("offset: " + offset);
+        cursor.dragEntity(draggedEntity, offset);
     }
 
     @Override
@@ -57,12 +63,11 @@ public class DragSystem extends IteratingSystem {
     }
 
     private Optional<Entity> getDraggableUnderCursor() {
-        final PositionComponent cursorPos = positionCM.get(cursorEntity);
         for(final Entity entity : draggables) {
             final RectangleAreaComponent area = areaCM.get(entity);
             final PositionComponent position = positionCM.get(entity);
 
-            if(area.isHovering(position.getPosition(), cursorPos.getPosition())) {
+            if(area.isHovering(position.getPosition(), cursor.getPosition())) {
                 return Optional.of(entity);
             }
         }

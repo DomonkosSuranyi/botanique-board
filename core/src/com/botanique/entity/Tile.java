@@ -6,8 +6,8 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.botanique.component.*;
 
 public class Tile {
-    public static final int TILE_WIDTH = 100;
-    public static final int TILE_HEIGHT = 100;
+    public static final int TILE_WIDTH = 50;
+    public static final int TILE_HEIGHT = 50;
 
     private Tile() {
 
